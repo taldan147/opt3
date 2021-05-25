@@ -22,12 +22,18 @@ y = f + etta
 
 # argmin ||x-y||+lambda/2||Gx|| --------- x = (I+lambda/2*G^T*G)*y
 
-lam = 90
+lam = 100
 GTG = np.transpose(G) @ G
 M = np.eye(n) + lam/2 * GTG
 x_min = LA.inv(M) @ y
 
-# plt.figure(); plt.plot(x,x_min, label = "recover"); plt.plot(x,f, label = "clean"); plt.legend() ;plt.show()
+plt.figure(); plt.plot(x,x_min, label = r'recover using ${{\scrl}_2 } norm,\lambda=100$'); plt.plot(x,f, label = "clean"); plt.legend() ;plt.show()
+
+lam = 80
+GTG = np.transpose(G) @ G
+M = np.eye(n) + lam/2 * GTG
+x_min = LA.inv(M) @ y
+plt.figure(); plt.plot(x,x_min, label = r'recover using ${{\scrl}_2 } norm,\lambda=80$'); plt.plot(x,f, label = "clean"); plt.legend() ;plt.show()
 
 
 # --------------------------------------------(b)-------------------------------------------------
@@ -41,6 +47,6 @@ def IRLS( y, w, G ,  epsilon, lamda, maxIter):
 
     return x
 
-x_min = IRLS( y,  np.eye(n-1), G, 0.001, 1, 10)
+x_IRLS = IRLS( y,  np.eye(n-1), G, 0.001, 1, 10)
 
-plt.figure(); plt.plot(x,x_min, label = "recover"); plt.plot(x,f, label = "clean"); plt.legend() ;plt.show()
+plt.figure(); plt.plot(x,x_IRLS, label = "recover using IRLS"); plt.plot(x,f, label = "clean"); plt.legend() ;plt.show()
