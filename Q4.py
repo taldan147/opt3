@@ -1,7 +1,6 @@
 import copy
 
 import numpy as np
-from scipy.sparse import spdiags
 import matplotlib.pyplot as plt
 import numpy.linalg as LA
 import math
@@ -9,7 +8,6 @@ import struct
 from array import array
 from os.path import join
 import os
-import random
 
 def LGobj(X, y ,w):
     c1, c2 = generate_c(y)
@@ -77,7 +75,6 @@ def LG(X, y, w):
 
 X = np.random.rand(10,10)
 y = np.random.choice([0, 1], size=10)
-# w = np.random.uniform(low=-5, high=5, size=(10,))
 w = np.random.rand(10)
 
 d = np.random.rand(10)
@@ -130,14 +127,22 @@ def test_hess(X,y,w , epsilon, d, maxIter):
 
 loss , loss_grad, epsilons, DF, DF_grad = test_grad(X, y, w, 0.1, d, 20)
 iterations = np.arange(19)
-print(DF_grad)
-# plt.figure(); plt.semilogy(iterations,loss, label = "gradient test : loss");  plt.semilogy(iterations,loss_grad, label = "loss_grad");
+iterations2 = np.arange(20)
+loss2 , loss_hess, epsilons, DF2, DF_hess = test_hess(X, y, w, 0.1, d, 20)
+
+plt.figure(); plt.semilogy(iterations2,loss, label = "gradient test : loss");  plt.semilogy(iterations2,loss_grad, label = "loss_grad");
+
+plt.suptitle('Tests by descent factor')
+plt.xlabel('Iterations')
+plt.ylabel('Decrease factor')
+plt.semilogy(iterations2,loss2, label = "hessian test : loss");  plt.semilogy(iterations2,loss_hess, label = "loss_hess"); plt.legend() ;plt.show()
+
 plt.figure(); plt.plot(iterations,DF, label = "gradient test : loss");  plt.plot(iterations,DF_grad, label = "loss_grad");
+plt.suptitle(r'Tests by decreasing values of $\epsilon$')
+plt.xlabel('Iterations')
+plt.ylabel(r'$\epsilon$')
 
-
-loss , loss_hess, epsilons, DF, DF_hess = test_hess(X, y, w, 0.1, d, 20)
-# plt.semilogy(iterations,loss, label = "hessian test : loss");  plt.semilogy(iterations,loss_hess, label = "loss_hess"); plt.legend() ;plt.show()
-plt.plot(iterations,DF, label = "hessian test : loss");  plt.plot(iterations,DF_hess, label = "loss_hess"); plt.legend() ;plt.show()
+plt.plot(iterations,DF2, label = "hessian test : loss");  plt.plot(iterations,DF_hess, label = "loss_hess"); plt.legend() ;plt.show()
 
 
 # --------------------------------------------------------c-----------------------------------------------------------
@@ -171,9 +176,9 @@ class MnistDataloader(object):
         for i in range(size):
             img = np.array(image_data[i * rows * cols:(i + 1) * rows * cols])
             img = img.reshape(28, 28)
-            meanval = np.mean(img)
-            stdval = np.std(img)
-            img = (img - meanval) / (stdval + 0.1)
+            # meanval = np.mean(img)
+            # stdval = np.std(img)
+            # img = (img - meanval) / (stdval + 0.1)
             images[i][:] = img
 
         return images, labels
@@ -224,29 +229,29 @@ def show_images(images, title_texts):
 mnist_dataloader = MnistDataloader(training_images_filepath, training_labels_filepath, test_images_filepath,
                                    test_labels_filepath)
 (x_train, y_train), (x_test, y_test) = mnist_dataloader.load_data()
-
 #
 # Show some random training and test images
 #
-images_2_show = []
-titles_2_show = []
-for i in range(0, 10):
-    r = random.randint(1, 60000)
-    images_2_show.append(x_train[r])
-    titles_2_show.append('training image [' + str(r) + '] = ' + str(y_train[r]))
+# images_2_show = []
+# titles_2_show = []
+# for i in range(0, 10):
+#     r = random.randint(1, 60000)
+#     images_2_show.append(x_train[r])
+#     titles_2_show.append('training image [' + str(r) + '] = ' + str(y_train[r]))
+#
+# for i in range(0, 5):
+#     r = random.randint(1, 10000)
+#     images_2_show.append(x_test[r])
+#     titles_2_show.append('test image [' + str(r) + '] = ' + str(y_test[r]))
 
-for i in range(0, 5):
-    r = random.randint(1, 10000)
-    images_2_show.append(x_test[r])
-    titles_2_show.append('test image [' + str(r) + '] = ' + str(y_test[r]))
-
-show_images(images_2_show, titles_2_show)
+# show_images(images_2_show, titles_2_show)
 
 
 def Armijio(X,y,x, gradx, d, a, b, c, maxiter):
     for i in range(maxiter):
         obj_a = LGobj(X, y, x + a*d)
         if obj_a < (LGobj(X, y, x) + c*a*np.inner(gradx,d)):
+            print(i)
             return a
         else:
             a = b*a
@@ -259,10 +264,11 @@ def gradient_descent(X, y, w,maxIter, a0, beta, c, epsilon):
         grad = gradientLogistic(X,y,w)
         d = -grad
         alpha = Armijio(X,y,w, grad, d, a0,beta, c, 100)
+        wPrev = w
         w = w + alpha * d
-        # w = np.clip(w,-1,1)
+        w = np.clip(w,-1,1)
         f_values.append(LGobj(X,y,w))
-        if LA.norm(w-f_values[i-1]) / LA.norm(w) < epsilon:
+        if LA.norm(w-wPrev) / LA.norm(w) < epsilon:
             break
     return w, f_values
 
@@ -270,13 +276,14 @@ def exactNewton(X, y, w,maxIter, a0, beta, c, epsilon):
     f_values = [LGobj(X, y, w)]
     for i in range(maxIter):
         grad = gradientLogistic(X,y,w)
-        hess = hessianLogistic(X,w) + np.eye(len(w))* 0.001
+        hess = hessianLogistic(X,w) + np.eye(len(w))* 0.01
         d = -1 * LA.inv(hess) @ grad
         alpha = Armijio(X,y,w, grad, d, a0,beta, c, 100)
+        wPrev = w
         w = w + alpha * d
-        # w = np.clip(w,-1,1)
+        w = np.clip(w,-1,1)
         f_values.append(LGobj(X,y,w))
-        if LA.norm(w-f_values[i-1]) / LA.norm(w) < epsilon:
+        if LA.norm(w-wPrev) / LA.norm(w) < epsilon:
             break
     return w, f_values
 
@@ -293,12 +300,12 @@ def filterTwoDigits(num1, num2, x, y):
 def imageToVector(data):
     xNew = copy.deepcopy(data)
     for i in range(len(xNew)):
-        tmpMatrix = xNew[i]
-        tmp = np.ndarray.tolist(tmpMatrix[0])
-        for j in range(1, len(tmpMatrix)):
-            list = np.ndarray.tolist(tmpMatrix[j])
-            tmp.extend(list)
-        xNew[i] = np.asarray(tmp)
+        # tmpMatrix = xNew[i]
+        # tmp = np.ndarray.tolist(tmpMatrix[0])
+        # for j in range(1, len(tmpMatrix)):
+        #     list = np.ndarray.tolist(tmpMatrix[j])
+        #     tmp.extend(list)
+        xNew[i] = np.asarray(np.ndarray.flatten(xNew[i]))
     return xNew
 
 
@@ -308,44 +315,11 @@ def calculateError(w, w_k):
         ans.append(abs(w_k[i]-w))
     return ans;
 
-
+x_train = [x_train[i] for i in range(30000)]
 
 
 
 def runAndPlotGD(digit1, digit2):
-    zero_one_images_train, zero_one_labels_train = filterTwoDigits(digit1, digit2, x_train, y_train)
-    zero_one_images_train = imageToVector(zero_one_images_train)
-    zero_one_images_test, zero_one_labels_test = filterTwoDigits(digit1, digit2, x_test, y_test)
-    zero_one_images_test = imageToVector(zero_one_images_test)
-
-    # for i in range(len(zero_one_images_train)):
-    #     zero_one_images_train[i] = (zero_one_images_train[i]) / 255
-    #
-    # for i in range(len(zero_one_images_test)):
-    #     zero_one_images_test[i] = (zero_one_images_test[i]) / 255
-    zero_one_images_train = np.transpose(np.asarray(zero_one_images_train))
-    zero_one_labels_train = np.asarray(zero_one_labels_train)
-    zero_one_images_test = np.transpose(np.asarray(zero_one_images_test))
-    zero_one_labels_test = np.asarray(zero_one_labels_test)
-
-    w1 = np.zeros(784)
-    bet = 0.5
-    c = 1e-4
-    # def gradient_descent(X, y, w,maxIter, a0, beta, c, epsilon):
-    wStar, w_k = gradient_descent(zero_one_images_train, zero_one_labels_train, w1, 100, 0.25, bet, c, 0.0001)
-    error_train = calculateError(w_k[len(w_k) - 1], w_k)
-    wStar_test, w_k_test = gradient_descent(zero_one_images_test, zero_one_labels_test, w1, 100, 0.25, bet, c, 0.0001)
-    # error_test = calculateError(min(w_k_test), w_k_test)
-    error_test = calculateError(w_k_test[len(w_k) - 1], w_k_test)
-
-    plt.semilogy(error_train, label='train '+str(digit1)+',' + str(digit2))
-    plt.semilogy(error_test, label='test '+str(digit1)+',' + str(digit2))
-    plt.xlabel("iteration")
-    plt.ylabel(r'$|f(w^{(k)}-f(w^*)|$')
-    plt.legend()
-    plt.show()
-
-def runAndPlotNewton(digit1, digit2):
     zero_one_images_train, zero_one_labels_train = filterTwoDigits(digit1, digit2, x_train, y_train)
     zero_one_images_train = imageToVector(zero_one_images_train)
     zero_one_images_test, zero_one_labels_test = filterTwoDigits(digit1, digit2, x_test, y_test)
@@ -364,14 +338,48 @@ def runAndPlotNewton(digit1, digit2):
     w1 = np.zeros(784)
     bet = 0.5
     c = 1e-4
+    wStar, w_k = gradient_descent(zero_one_images_train, zero_one_labels_train, w1, 100, 0.25, bet, c, 0.001)
+    error_train = calculateError(w_k[len(w_k) - 1], w_k)
+    wStar_test, w_k_test = gradient_descent(zero_one_images_test, zero_one_labels_test, w1, 100, 0.25, bet, c, 0.001)
+    # error_test = calculateError(min(w_k_test), w_k_test)
+    error_test = calculateError(w_k_test[len(w_k) - 1], w_k_test)
+
+    plt.semilogy(error_train, label='train')
+    plt.semilogy(error_test, label='test')
+    plt.suptitle("Gradient Descent: " + str(digit1) + "/" + str(digit2))
+    plt.xlabel("iteration")
+    plt.ylabel(r'$|f(w^{(k)}-f(w^*)|$')
+    plt.legend()
+    plt.show()
+
+def runAndPlotNewton(digit1, digit2):
+    zero_one_images_train, zero_one_labels_train = filterTwoDigits(digit1, digit2, x_train, y_train)
+    zero_one_images_train = imageToVector(zero_one_images_train)
+    zero_one_images_test, zero_one_labels_test = filterTwoDigits(digit1, digit2, x_test, y_test)
+    zero_one_images_test = imageToVector(zero_one_images_test)
+
+    # for i in range(len(zero_one_images_train)):
+    #     zero_one_images_train[i] = (zero_one_images_train[i]) / 255
+    #
+    # for i in range(len(zero_one_images_test)):
+    #     zero_one_images_test[i] = (zero_one_images_test[i]) / 255
+    zero_one_images_train = np.transpose(np.asarray(zero_one_images_train))
+    zero_one_labels_train = np.asarray(zero_one_labels_train)
+    zero_one_images_test = np.transpose(np.asarray(zero_one_images_test))
+    zero_one_labels_test = np.asarray(zero_one_labels_test)
+
+    w1 = np.zeros(784)
+    bet = 0.5
+    c = 1e-4
     wStar, w_k = exactNewton(zero_one_images_train, zero_one_labels_train, w1, 100, 1, bet, c, 0.0001)
     error_train = calculateError(w_k[len(w_k) - 1], w_k)
     wStar_test, w_k_test = exactNewton(zero_one_images_test, zero_one_labels_test, w1, 100, 1, bet, c, 0.0001)
     # error_test = calculateError(min(w_k_test), w_k_test)
     error_test = calculateError(w_k_test[len(w_k) - 1], w_k_test)
 
-    plt.semilogy(error_train, label='train ' + str(digit1) + ',' + str(digit2))
-    plt.semilogy(error_test, label='test ' + str(digit1) + ',' + str(digit2))
+    plt.semilogy(error_train, label='train')
+    plt.semilogy(error_test, label='test')
+    plt.suptitle("Exact Newton: " + str(digit1) + "/" + str(digit2))
     plt.xlabel("iteration")
     plt.ylabel(r'$|f(w^{(k)}-f(w^*)|$')
     plt.legend()
